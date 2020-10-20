@@ -24,25 +24,24 @@ each floating point numbers and
 #Initialize a knapsack class which keeps a list of values, weights, and a capacity
 class Knapsack:
 	def __init__(self,k):
-		self.values = 2*np.random.rand(k,1)
-		self.weights = 2*np.random.rand(k,1)
+		self.values = 2**np.random.randn(k,1)
+		self.weights = 2**np.random.randn(k,1)
 		self.capacity = 0.25 * (self.weights.T @ np.ones((k,1)))
-		self.best = 0
+		best = 0
 		self.heurBest = np.zeros((k,1))
-		for i,k in enumerate(self.values/self.weights):
-			newval = self.best + k
+		for i,k in enumerate(-np.sort(-self.values/self.weights)):
+			newval = best + k
 			if newval <= self.capacity:
-				self.best = newval
+				best = newval
 				self.heurBest[i] = 1
 				
 #fitness function to minimize, increases in value when items are high in weight decreases in value when they are high value
 #Returns infinite if the packing is over capacity
-
 def fitness(items, knp):
 	weight = items @ knp.weights
 	value = items @ knp.values
 	caps = knp.capacity * np.ones(weight.shape)
-	return(- value + 100000*knp.capacity*4*(weight >= caps))
+	return(- value + 10000*knp.capacity*4*(weight >= caps))
 	
 
 
@@ -79,29 +78,40 @@ def elimination(joinedPopulation, knp, keep):
 	survivors = joinedPopulation[np.reshape(perm[0:keep], keep),:]
 	return(survivors)
 
+def initialize(k, lmbda, knp):
+	pop = np.zeros((lmbda,k))
+	for i in range(lmbda):
+		total = 0
+		for j in np.random.choice(k,k, replace = False):
+			trial = total + knp.weights[j]
+			if trial <= knp.capacity:
+				pop[i][j] = 1
+				total = trial
+	return(pop)
+	 
 def knapsackProblem(k):
-	alpha = 0.1
-	lmbda = 10*k
+	alpha = 0.3
+	lmbda = 100
 	knap = Knapsack(k)
 	
-	pop = 1.0*(np.random.randn(lmbda, k) >= 0.5)
+	pop = initialize(k, lmbda, knap)
 	bestFOld = 100
 	bestF = 10000
 	count = 0
 	
-	while(abs(bestFOld - bestF) >= 0.001):
-	#for i in range(20):
+	while(abs(bestFOld - bestF) >= 0.001 or bestF > 0):
+	#for i in range(10):
 		selected = selection(pop, knap, lmbda, 5)
 		offspring = crossover(selected)
 		joinedPopulation = np.concatenate((mutation(offspring, alpha),pop))
 		pop = elimination(joinedPopulation, knap, lmbda)
 		best = pop[0,:]
 		bestFOld = bestF
-		bestF = fitness(best,knap)
+		bestF = np.mean(fitness(pop, knap))
 		count += 1
 		print(count, bestF)
 	
 	print(np.hstack((pop, pop @ knap.weights, pop @ knap.values / (knap.values.T @ np.ones((k,1))))), "\n\nCapacity: ", knap.capacity)
 	print("HeurBest: ", knap.heurBest.T @ knap.values, "\nFoundBest: ", pop[0,:] @ knap.values )
 	
-knapsackProblem(1000)
+knapsackProblem(30)
